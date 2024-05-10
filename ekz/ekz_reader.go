@@ -68,18 +68,24 @@ func (e *EkzReader) Authenticate(username string, password string) error {
 	return nil
 }
 
-func (e *EkzReader) GetConsumptionData(installationId string, from time.Time, to time.Time) (string, error) {
+func (e *EkzReader) GetConsumptionData(installationId string, from time.Time, to time.Time) (*EkzData, error) {
 	consumptionUrl := consumptionDataUrl(installationId, from, to)
 	req, err := e.client.Get(consumptionUrl)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+	if req.StatusCode != 200 {
+		return nil, fmt.Errorf("unexpected status code for consumption data: %d", req.StatusCode)
+	}
+
 	defer req.Body.Close()
 	bodyString, err := io.ReadAll(req.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(bodyString), nil
+
+	ekzData, err := EkzDataFromJson(bodyString)
+	return &ekzData, err
 }
 
 func consumptionDataUrl(installationId string, from time.Time, to time.Time) string {

@@ -27,14 +27,14 @@ func NewInfluxAppender(url string, token string, org string, bucket string) *Inf
 	}
 }
 
-func (i *InfluxAppender) WriteData(data []ekz.EkzSeriesValues) {
+func (i *InfluxAppender) WriteData(name string, data []ekz.EkzSeriesValues) {
 	for _, value := range data {
 		// Ekz time is UTC in the format "YYYYMMDDHHmmss"
 		parsedTime, err := time.Parse("20060102150405", fmt.Sprint(value.Timestamp))
 		if err != nil {
 			panic(err)
 		}
-		p := influxdb2.NewPoint("power",
+		p := influxdb2.NewPoint(name,
 			map[string]string{
 				"unit": "kWh",
 			},

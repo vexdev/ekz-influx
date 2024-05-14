@@ -2,7 +2,6 @@ package ekz
 
 import (
 	"encoding/json"
-	"slices"
 )
 
 type EkzData struct {
@@ -41,18 +40,27 @@ func EkzDataFromJson(data []byte) (EkzData, error) {
 	return ekzData, nil
 }
 
-func (e *EkzData) GetValidValuesSorted() []EkzSeriesValues {
-	var sortedSeries []EkzSeriesValues
-	for _, series := range []EkzSeries{e.Series, e.SeriesHt, e.SeriesNt, e.SeriesNetz, e.SeriesNetzHt, e.SeriesNetzNt} {
+func (e *EkzData) GetAllValidValues() []EkzSeriesValues {
+	return getValidValues([]EkzSeries{e.Series, e.SeriesHt, e.SeriesNt, e.SeriesNetz, e.SeriesNetzHt, e.SeriesNetzNt})
+}
+
+func (e *EkzData) GetValidHtValues() []EkzSeriesValues {
+	return getValidValues([]EkzSeries{e.SeriesHt, e.SeriesNetzHt})
+}
+
+func (e *EkzData) GetValidNtValues() []EkzSeriesValues {
+	return getValidValues([]EkzSeries{e.SeriesNt, e.SeriesNetzNt})
+}
+
+func getValidValues(series []EkzSeries) []EkzSeriesValues {
+	var validValues []EkzSeriesValues
+	for _, series := range series {
 		for _, value := range series.Values {
 			if value.Status != "VALID" {
 				continue
 			}
-			sortedSeries = append(sortedSeries, value)
+			validValues = append(validValues, value)
 		}
 	}
-	slices.SortFunc(sortedSeries, func(a, b EkzSeriesValues) int {
-		return a.Timestamp - b.Timestamp
-	})
-	return sortedSeries
+	return validValues
 }

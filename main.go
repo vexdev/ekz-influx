@@ -44,24 +44,48 @@ func main() {
 	}
 
 	influxAppender := influx.NewInfluxAppender(influxUrl, influxToken, influxOrg, influxBucket)
+	lastFetchedTimestamp := 0
 
 	for {
-		data, err := ekzReader.GetConsumptionData(installationId, time.Now().Add(-6*time.Hour), time.Now())
+		data, err := ekzReader.GetConsumptionData(installationId, time.Now().Add(-24*time.Hour), time.Now())
 		if err != nil {
 			// Retry once
 			err = ekzReader.Authenticate(username, password)
 			if err != nil {
 				panic(err)
 			}
-			data, err = ekzReader.GetConsumptionData(installationId, time.Now().Add(-6*time.Hour), time.Now())
+			data, err = ekzReader.GetConsumptionData(installationId, time.Now().Add(-24*time.Hour), time.Now())
 			if err != nil {
 				panic(err)
 			}
 		}
 
-		sortedSeries := data.GetValidValuesSorted()
-		influxAppender.WriteData(sortedSeries)
-		println("DataPoints written to influx: ", len(sortedSeries))
+		allValues := data.GetAllValidValues()
+		maxTimestamp := getMaxTimestamp(allValues)
+		if len(allValues) == 0 || maxTimestamp <= lastFetchedTimestamp {
+			println("No new values found")
+			time.Sleep(15 * time.Minute)
+			continue
+		}
+		lastFetchedTimestamp = maxTimestamp
+		influxAppender.WriteData("power", allValues)
+		println("DataPoints written to influx power: ", len(allValues))
+		htValues := data.GetValidHtValues()
+		influxAppender.WriteData("power_ht", htValues)
+		println("DataPoints written to influx power_ht: ", len(htValues))
+		ntValues := data.GetValidNtValues()
+		influxAppender.WriteData("power_nt", ntValues)
+		println("DataPoints written to influx power_nt: ", len(ntValues))
 		time.Sleep(15 * time.Minute)
 	}
+}
+
+func getMaxTimestamp(values []ekz.EkzSeriesValues) int {
+	max := 0
+	for _, value := range values {
+		if value.Timestamp > max {
+			max = value.Timestamp
+		}
+	}
+	return max
 }
